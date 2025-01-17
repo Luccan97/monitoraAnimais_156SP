@@ -1,0 +1,13 @@
+name: monitoraAnimais156SP
+title: monitoraAnimais156SP
+username: 6c6yvn-lucca0nielsen
+account: 6c6yvn-lucca0nielsen
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12159304
+bundleId: 8724368
+url: https://lnielsen97.shinyapps.io/monitoraAnimais156SP/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: dados_limpos/semGEO.RDS

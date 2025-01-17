@@ -1,0 +1,13 @@
+# R-specific ignores
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# RStudio project files
+*.Rproj
+
+# Data files
+data/raw/
+data/clean/*.RDS
+
