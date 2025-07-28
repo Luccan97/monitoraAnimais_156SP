@@ -54,15 +54,39 @@ read_clean_rename_filter_and_bind <- function(files) {
         data_list <- vector("list", total_files)
         
         for (i in seq_along(files)) {
-                cat("Lendo e filtrando arquivo", i, "de", total_files, ":", files[i], "\n")
+                cat("\nLendo e filtrando arquivo", i, "de", total_files, ":", files[i], "\n")
                 tryCatch({
                         df <- read_excel(files[i], .name_repair = "minimal")
-                        # Mostrar a classe das colunas Latitude e Longitude
+                        names(df) <- trimws(names(df)) # remove espaços
+                        
+                        # Força a conversão da coluna "Data" para POSIXct se ela existir
+                        if ("Data" %in% names(df)) {
+                                cat("Classe original da coluna 'Data':", class(df$Data), "\n")
+                                df$Data <- tryCatch({
+                                        if (inherits(df$Data, "POSIXct")) {
+                                                df$Data
+                                        } else if (is.numeric(df$Data)) {
+                                                as.POSIXct(df$Data, origin = "1899-12-30", tz = "UTC")
+                                        } else if (is.character(df$Data)) {
+                                                as.POSIXct(df$Data, format = "%Y-%m-%d", tz = "UTC")
+                                        } else {
+                                                stop("Tipo de 'Data' não conversível.")
+                                        }
+                                }, error = function(e) {
+                                        cat("Erro ao converter coluna 'Data':", e$message, "\n")
+                                        df$Data <- NA  # ou NULL para remover
+                                        df
+                                })
+                                cat("Nova classe da coluna 'Data':", class(df$Data), "\n")
+                        } else {
+                                cat("Coluna 'Data' não encontrada.\n")
+                        }
+                        
+                        # Verifica Latitude e Longitude
                         if ("Latitude" %in% colnames(df) & "Longitude" %in% colnames(df)) {
                                 cat("Classe de Latitude:", class(df$Latitude), "\n")
                                 cat("Classe de Longitude:", class(df$Longitude), "\n")
                                 
-                                # Calcular e mostrar % de NAs antes da conversão
                                 perc_na_lat_before <- mean(is.na(df$Latitude)) * 100
                                 perc_na_long_before <- mean(is.na(df$Longitude)) * 100
                                 cat("Percentual de NAs em Latitude antes da conversão:", perc_na_lat_before, "%\n")
@@ -70,22 +94,49 @@ read_clean_rename_filter_and_bind <- function(files) {
                                 
                                 df_clean_filtered <- clean_rename_and_filter_data(df)
                                 
-                                # Calcular e mostrar % de NAs após a conversão
                                 perc_na_lat_after <- mean(is.na(df_clean_filtered$Latitude)) * 100
                                 perc_na_long_after <- mean(is.na(df_clean_filtered$Longitude)) * 100
                                 cat("Percentual de NAs em Latitude após a conversão:", perc_na_lat_after, "%\n")
                                 cat("Percentual de NAs em Longitude após a conversão:", perc_na_long_after, "%\n")
                         } else {
                                 cat("As colunas Latitude ou Longitude não estão presentes no arquivo.\n")
+                                df_clean_filtered <- clean_rename_and_filter_data(df)
                         }
+                        
                         data_list[[i]] <- df_clean_filtered
                 }, error = function(e) {
                         cat("Erro ao ler e processar o arquivo:", files[i], "\n", e$message, "\n")
                 })
         }
         
+        # Validação final: forçar todas as colunas "Data" a POSIXct (inclusive se limpou depois)
+        data_list <- lapply(data_list, function(df) {
+                if ("Data" %in% names(df)) {
+                        if (!inherits(df$Data, "POSIXct")) {
+                                df$Data <- tryCatch({
+                                        if (is.numeric(df$Data)) {
+                                                as.POSIXct(df$Data, origin = "1899-12-30", tz = "UTC")
+                                        } else if (is.character(df$Data)) {
+                                                as.POSIXct(df$Data, format = "%Y-%m-%d", tz = "UTC")
+                                        } else {
+                                                as.POSIXct(NA)
+                                        }
+                                }, error = function(e) {
+                                        cat("Erro forçando POSIXct em bind: ", e$message, "\n")
+                                        as.POSIXct(NA)
+                                })
+                        }
+                }
+                return(df)
+        })
+        
+        cat("\nVerificando classes finais da coluna 'Data':\n")
+        print(sapply(data_list, function(df) class(df$Data)))
+        
         bind_rows(data_list)
 }
+
+
 
 # Leia, limpe, renomeie, filtre e combine todos os arquivos XLSX em um único DataFrame
 combined_data <- read_clean_rename_filter_and_bind(file_paths)
